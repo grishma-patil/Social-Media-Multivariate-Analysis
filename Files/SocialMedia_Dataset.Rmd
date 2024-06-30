@@ -1,0 +1,218 @@
+---
+title: "Social_Media_Dataset"
+output: html_document
+date: "2024-03-29"
+---
+
+```{r}
+library(psych)
+library(readr)
+library(FactoMineR)
+library(ggfortify)
+library(corrplot)
+library(devtools)
+dataset<- read.csv("C:/Users/mumba/Documents/Social_Media__Dataset.csv")
+dataset <- dataset[-1]
+str(dataset)
+```
+
+```{r}
+#data$OTT <- data$OTT..Netflix..Hulu..Prime.video..
+summary(dataset)
+```
+The data shows that people use Instagram, LinkedIn, and Snapchat the most, with Instagram being the most popular. People also watch YouTube and use other online streaming services like Netflix. Most people seem to feel good or okay in terms of mood and productivity. However, some struggle with falling asleep, and many feel tired when they wake up in the morning. Overall, the data suggests that while social media is popular, it might be affecting people's sleep and energy levels.
+
+```{r}
+stddataset <- scale(dataset)
+stddataset
+```
+Positive values indicate above-average usage, while negative values mean below-average usage. For instance, a high value for Twitter in one row suggests heavy usage compared to other platforms. The standardized data also shows variations in sleep-related metrics, like feeling tired in the morning or having trouble falling asleep.
+
+```{r}
+datasetcov <- cov(dataset) 
+datasetcov
+
+# Formatting 
+datasetcov_rounded <- round(datasetcov, digits = 2)
+datasetcov_df <- as.data.frame(datasetcov_rounded)
+datasetcov_df
+```
+Positive values indicate that variables tend to increase or decrease together, while negative values suggest an inverse relationship. For example, Instagram and Whatsapp.WeChat have a high covariance, indicating they tend to increase or decrease together. A covariance of 0 suggests no linear relationship between variables. 
+
+
+```{r}
+datasetmean <-  colMeans(dataset)
+datasetmean
+```
+These mean values for each variable in the dataset indicate typical usage or experience
+```{r}
+dataset_MD <- mahalanobis(dataset, datasetmean, datasetcov)
+dataset_MD
+
+#My usage vs class
+dataset_MD[10]
+
+```
+The output [10] 19.04762 indicates the Mahalanobis distance for the my usage with the class.
+
+```{r}
+# Lets plot correlation between columns
+cor.plot(dataset)
+```
+
+Insights: 
+Users who spend more time on Instagram tend to also use Snapchat and WhatsApp/WeChat extensively.
+People who have difficulty waking up feeling tired in the morning also tend to experience trouble falling asleep.
+Those who struggle to fall asleep are more likely to spend significant time on Instagram and Snapchat.
+Users who report feeling tired upon waking up in the morning have an opposite correlation with LinkedIn and YouTube, implying that those who use LinkedIn and YouTube less tend to feel more tired in the morning.
+
+
+```{r}
+#Lets identify outliers in our dataset
+boxplot(dataset)
+```
+We could see there are many outlier.
+## Principal Component Analysis
+
+```{r}
+cor(dataset)
+```
+The correlation matrix indicates:
+Positive correlations between Instagram, Snapchat, and WhatsApp/WeChat, suggesting users who engage more on one platform are likely to do so on others.
+Trouble falling asleep is strongly correlated with Instagram and Snapchat, possibly implying prolonged screen time affecting sleep.
+Negative correlations exist between feeling tired upon waking up and LinkedIn, YouTube, indicating less usage among those reporting tiredness.
+
+```{r}
+dataset_pca <- prcomp(dataset,scale. =TRUE)
+dataset_pca
+```
+The variance explained by each principal component, with PC1 explaining the highest variance.
+Variable loadings on each component, indicating their contribution to the component's variation.
+Interpretation suggests PC1 represents overall social media usage, PC2 reflects professional networking, and so on.
+PCA helps simplify the dataset's structure, aiding in dimensionality reduction and identifying underlying patterns in the data.
+
+```{r}
+summary(dataset_pca)
+```
+
+Insights : Keeping PC1, PC2, PC3 and PC4, as it captures ~75% of variance. 
+
+## Checking if our insight is correct 
+
+```{r}
+(eigen_dataset <- dataset_pca$sdev^2)
+```
+These eigenvalues represent the amount of variance explained by each principal component, with higher values indicating greater explanatory power.
+```{r}
+plot(eigen_dataset, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+
+```
+```{r}
+plot(eigen_dataset, type = "b", main="Scree Plot")
+abline(h=1,col="blue",lty=2)
+```
+
+```{r}
+library(factoextra)
+fviz_eig(dataset_pca, addlabels = TRUE)
+```
+
+```{r}
+
+fviz_pca_var(dataset_pca,col.var = "cos2",
+             gradient.cols = c("#FFCC00", "#CC9933", "#660033", "#330033"),
+             repel = TRUE)
+```
+
+Plot shows which variables are correlated. Here, Linkedin, Snapchat, Instagram, Youtube, Whatsapp/Wechat, Mood Productivity.
+
+## Clustering 
+#1) Hierarchical
+
+```{r}
+library(cluster)
+library(readr)
+library(factoextra)
+library(magrittr)
+library(NbClust)
+
+dist.dataset <- dist(stddataset, method="euclidean")
+colnames(dist.dataset) <- rownames(dist.dataset)
+
+clusdataset.nn <- hclust(dist.dataset, method = "single")
+
+options(repr.plot.width=10, repr.plot.height=6)  # Adjust the plot size as needed
+plot(as.dendrogram(clusdataset.nn), ylab="Distance",
+     main="Dendrogram of all Users")
+```
+Insight: I think the optimal number of clusters are 5 
+
+## Non-hierarchical clustering/ K-means clustering
+
+```{r}
+(kmeans2.dataset <- kmeans(stddataset,4,nstart = 10))
+
+```
+
+```{r}
+gap_stat <- clusGap(stddataset, FUN = kmeans, nstart = 10, K.max = 10, B = 50)
+
+fviz_gap_stat(gap_stat)
+```
+
+Optimal number of cluster verified with the above plot. 
+
+```{r}
+set.seed(123)
+## Perform K-means clustering
+km.res3 <- kmeans(stddataset, 3, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res3, data = stddataset,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+From the plot we cannot directly infer anything. We see a lot of overlapping clusters. That is because we have a lot users that are using the same social media platforms. 
+
+```{r}
+set.seed(123)
+## Perform K-means clustering
+km.res5 <- kmeans(stddataset, 5, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res5, data = stddataset,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+
+```{r}
+res.hc <- stddataset %>% scale() %>% dist(method = "euclidean") %>%
+  hclust(method = "ward.D2")  # Change matstd.dataset to your datasetset
+
+# Visualize the Dendrogram
+fviz_dend(res.hc, k = 5,  # Cut in four groups
+          cex = 0.5,  # label size
+          k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07", "pink"),
+          color_labels_by_k = TRUE,  # color labels by groups
+          rect = TRUE)
+```
+## Factor Analysis
+```{r}
+library(psych)
+fa.parallel(dataset[-1])
+```
+Parallel analysis suggests that the number of factors =  0  and the number of components =  0 
+
+```{r}
+fit.pc <- principal(dataset[-1], nfactors=3, rotate="varimax")
+fit.pc
+```
+
+```{r}
+fa.diagram(fit.pc)
+```
+
+```{r}
+vss(dataset[-1])
+```
+

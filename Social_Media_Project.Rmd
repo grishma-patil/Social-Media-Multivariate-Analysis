@@ -1,0 +1,251 @@
+---
+title: "Social_Media"
+author: "gp549@newark.rutgers.edu"
+date: "2024-26-04"
+output: html_document
+---
+
+
+```{r }
+library(MASS)
+library(ggplot2)
+library(memisc)
+library(ROCR)
+library(dplyr)
+library(klaR)
+library(memisc)
+library(ggplot2)
+library(corrplot)
+library(factoextra)
+library(psych)
+library(NbClust)
+library(caTools)
+library(magrittr)
+library(pROC)
+library(caret)
+
+
+data <- read.csv("/Users/mumba/Documents/Midterm_new.csv", row.names=1)
+str(data)
+```
+
+#### DATA COLLECTION :
+The dataset comprises social media usage reported by 21 students, with a total of 12 columns and 22 rows. Each row represents cumulative data for an individual student.
+
+#### Data Dictionary :
+Dataset ID: Unique identifier assigned to each student's data entry.
+Instagram Usage: Duration of Instagram app usage.
+LinkedIn Usage: Duration of LinkedIn app usage.
+Snapchat Usage: Duration of Snapchat app usage.
+Twitter Usage: Duration of Twitter app usage.
+Whatsapp Usage: Duration of WhatsApp app usage.
+Youtube Usage: Duration of YouTube app usage.
+OTT Usage: Duration of Over-the-Top media services usage.
+Reddit Usage: Duration of Reddit app usage.
+Trouble Falling Asleep: Indicates if the student reported difficulty falling asleep (0: No, 1: Yes).
+Mood Productivity: Subjective measure of the student's mood and productivity level (0: Bad, 1: Good).
+Tiredness upon Waking Up in the Morning: Indicates the level of tiredness reported by the student upon waking up in the morning (0: Low, 1: High).
+
+
+#### QUESTIONS and HYPOTHESIS Questions :
+
+Using the provided information, can we determine if students are experiencing tiredness upon waking up in the morning due to social media usage.
+Using the provided data, can we predict whether students are experiencing tiredness upon waking up in the morning due to social media usage.
+
+#### Hypothesis :
+
+We can use the amount of time students spend on different social media apps to predict if they're affected by tiredness when waking up in the morning.
+
+
+```{r }
+str(data)
+summary(data)
+stars(data)
+```
+
+
+```{r }
+correlation_matrix <- cor(data[,1:11])
+correlation_matrix
+
+corrplot(cor(data), type = "upper", method = "color")
+
+```
+
+The correlation matrix shows us a correlation between the columns in both cases. So, Principal Component Analysis (PCA) can help in reducing the number of columns used for analysis.
+
+#### PCA 
+```{r }
+
+# PCA
+
+data_pca <- prcomp(data[,1:10],scale=TRUE) 
+data_pca
+
+summary(data_pca)
+
+fviz_eig(data_pca, addlabels = TRUE)
+```
+
+
+The scree plot indicates that the total variance explained by the first 2 principal components is less than 70%. Therefore, using PCA to reduce the number of columns may not be suitable. Next, we'll explore Exploratory Factor Analysis (EFA) for this dataset.
+
+
+
+```{r}
+
+fviz_pca_var(data_pca,col.var = "cos2",
+             gradient.cols = c("#FFCC00", "#CC9933", "#660033", "#330033"),
+             repel = TRUE)
+```
+
+#### FACTOR ANALYSIS :
+
+```{r}
+
+fit.pc <- principal(data[,1:8], nfactors=4, rotate="varimax") 
+fit.pc
+
+
+
+fa.diagram(fit.pc) 
+
+vss(data[,1:8])
+
+```
+RC1: Content Engagement: Reflects user activity and interaction with various content sharing platforms like Twitter and Reddit.
+RC2: Social Media Usage: Represents the extent of engagement with popular social media platforms such as Snapchat, LinkedIn, and Instagram.
+RC3: Communication and Entertainment: Indicates usage patterns focused on communication and entertainment through platforms like Whatsapp and OTT services.
+RC4: Information Consumption: Signifies engagement with content consumption and learning activities primarily through platforms like YouTube.
+
+#### CLUSTERING:
+
+```{r}
+
+
+efa_data <- as.data.frame(fit.pc$scores)
+efa_data
+
+
+matstd_sm <- scale(efa_data)
+
+
+
+res.hc <- matstd_sm %>% scale() %>% dist(method = "euclidean") %>%
+  hclust(method = "ward.D2")
+
+res.nbclust <- matstd_sm %>% scale() %>% NbClust(distance = "euclidean", min.nc = 3, max.nc = 13, method = "complete", index ="all") 
+
+km.res <- kmeans(matstd_sm, 5, nstart = 10)
+
+fviz_cluster(km.res, data = matstd_sm,
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+
+dist.data <- dist(matstd_sm, method="euclidean")
+
+
+
+fviz_dend(res.hc, k = 5, # Cut in four groups
+          cex = 0.5, # label size
+          k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"),
+          color_labels_by_k = TRUE, # color labels by groups
+          rect = TRUE # Add rectangle around groups
+)
+
+
+Clustered <- ifelse(km.res$cluster > 1.5, "NO Trouble waking up", "Trouble waking up")
+Actual <- ifelse(data$Trouble_falling_asleep == 1, "Trouble waking up", "No trouble waking up ")
+confusion_mat <- table(Clustered, Actual)
+confusion_mat
+
+accuracy <- sum(diag(confusion_mat)) / sum(confusion_mat)
+precision <- confusion_mat[2, 2] / sum(confusion_mat[, 2])
+recall <- confusion_mat[2, 2] / sum(confusion_mat[2, ])
+cat("Accuracy:", round(accuracy, 3), "\n")
+
+
+```
+
+
+The confusion matrix indicates that the clustering predominantly categorizes users as not experiencing any difficulty falling asleep.The accuracy is 71%, which is not that good.
+
+
+#### REGRESSION :
+
+```{r}
+wdbc <- read.csv("/Users/mumba/Documents/Midterm_new.csv")
+features <- c("Instagram", "LinkedIn", "Snapchat", "Twitter", "Whatsapp", "Youtube", "OTT", "Reddit", "Trouble_sleep", "Mood", "Tired_morning")
+names(wdbc) <- c("ID", "Instagram", "LinkedIn", "Snapchat", "Twitter", "Whatsapp", "Youtube", "OTT", "Reddit", "Trouble_sleep", "Mood", "Tired_morning")
+wdbc<- wdbc
+wdbc.data <- as.matrix(wdbc[,c(2:9)])
+row.names(wdbc.data) <- wdbc$ID
+
+```
+
+
+# DATA SPLITTING :
+```{r}
+wdbc_raw <- cbind(wdbc.data, as.numeric(as.factor(wdbc$Trouble_sleep))-1)
+colnames(wdbc_raw)[9] <- "Tired_waking_up_in_morning"
+# Create train and test datasets
+train_raw.df <- as.data.frame(wdbc_raw)
+test_raw.df <- as.data.frame(wdbc_raw)
+test_raw.df
+
+```
+
+
+#### LOGISTIC REGRESSION :
+
+
+Logistic regression is a statistical approach used to classify data into two categories. It estimates the likelihood that an observation belongs to one of two classes. It establishes the connection between a binary outcome and one or multiple independent variables.
+
+```{r}
+data <- read.csv("/Users/mumba/Documents/Midterm_new.csv")
+logistic_data <- glm(Tired_waking_up_in_morning ~ ., data = data, family = 'binomial')
+summary(logistic_data)
+
+predicted.data <- data.frame(probability.of.hd=logistic_data$fitted.values,Tired_waking_up_in_morning=data$Tired_waking_up_in_morning)
+predicted.data <- predicted.data[order(predicted.data$probability.of.hd, decreasing=FALSE),]
+predicted.data$rank <- 1:nrow(predicted.data)
+
+ggplot(data=predicted.data, aes(x=rank, y=probability.of.hd)) +
+  geom_point(aes(color=Tired_waking_up_in_morning), alpha=1, shape=4, stroke=2) +
+  xlab("Index") +
+  ylab("Predicted probability of getting in sleeping")
+probabilities_sm2 <- predict(logistic_data, new_data = test_raw.df, type = "response")
+probabilities_sm2
+
+predicted_sm2 <- ifelse(probabilities_sm2 > 0.5, "Yes", "No")
+predicted_sm2
+actual_sm <- ifelse(test_raw.df$Tired_waking_up_in_morning == 1, "Yes", "No")
+
+confusion_sm2 <- table(predicted_sm2, actual_sm)
+confusion_sm2
+accuracy2 <- sum(diag(confusion_sm2)) / sum(confusion_sm2)
+precision2 <- confusion_sm2[2, 2] / sum(confusion_sm2[, 2])
+recall2 <- confusion_sm2[2, 2] / sum(confusion_sm2[2, ])
+cat("Accuracy:", round(accuracy2, 3), "\n")
+cat("Precision:", round(precision2, 3), "\n")
+cat("Recall:", round(recall2, 3), "\n")
+probabilities <- predict(logistic_data, new_data = test_raw.df, type = "response")
+
+roc_sm <- roc(test_raw.df$Tired_waking_up_in_morning, probabilities_sm2)
+auc_sm <- auc(roc_sm)
+
+ggroc(roc_sm, color = "blue", legacy.axes = TRUE) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  scale_x_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(x = "False Positive Rate", y = "True Positive Rate",
+       title = paste("ROC Curve (AUC = ", round(auc_sm, 2), ")")) +
+  annotate("text", x = 0.5, y = 0.5, label = paste0("AUC = ", round(auc_sm, 2)))
+```
+
+These visualizations provide valuable insights into the logistic regression model's performance by showcasing Accuracy and ROC Curve of the model.
+
+
+#### CONCLUSION : 
+The logistic regression model demonstrated high accuracy and superior performance, as evident from its ROC curve. It particularly excelled in effectively predicting outcomes, specifically in distinguishing between individuals experiencing sleep disturbances and those who are not, using their social media usage patterns as predictors. This suggests that we can utilize the time spent on individual social media apps to predict whether a student is affected by or facing difficulties waking up early.

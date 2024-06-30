@@ -1,0 +1,94 @@
+---
+title: "Social_Media_Logistic_Regression"
+output: html_document
+date: "2024-04-20"
+---
+
+```{r}
+library(ggplot2)
+library(cowplot)
+library(caret)
+library(e1071)
+library(pROC)
+```
+
+Predicting the Impact on Mood Productivity based on Social Media Usage
+
+```{r}
+social_media <- read.csv("C:/Users/mumba/Documents/Social_media_new.csv", row.names=1)
+str(social_media)
+```
+
+Convert columns into Factors
+
+```{r}
+social_media$Mood_Productivity <- as.factor(social_media$Mood_Productivity)
+social_media$Tired_waking_up_in_morning <- as.factor(social_media$Tired_waking_up_in_morning) 
+social_media$Trouble_falling_asleep <- as.factor(social_media$Trouble_falling_asleep) 
+social_media$Mood_Productivity <- ifelse(test=social_media$Mood_Productivity == 'Yes', yes="Productive", no="Not Productive") 
+```
+
+```{r}
+social_media_reg <- social_media[, c("Instagram_Usage",	"LinkedIn_Usage",	"Snapchat_Usage", "Twitter_Usage",	"Whatsapp_Usage", "Reddit",	"Youtube_Usage",	"OTT", "Mood_Productivity", "Tired_waking_up_in_morning", "Trouble_falling_asleep")]
+```
+
+1)Model Development
+
+```{r}
+
+# Recode Mood_Productivity column
+social_media_reg$Mood_Productivity <- ifelse(social_media_reg$Mood_Productivity == "Not Productive", 0, 1)
+# Fit logistic regression model
+logistic_reg <- glm(Mood_Productivity ~ Instagram_Usage + LinkedIn_Usage + Snapchat_Usage + Twitter_Usage + Whatsapp_Usage + Youtube_Usage + OTT + Trouble_falling_asleep + Tired_waking_up_in_morning, data = social_media_reg, family = "binomial")
+
+# Summary of the logistic regression model
+summary(logistic_reg)
+
+```
+The p-values for all predictor variables ("Instagram_Hours", "LinkedIn_Hours", "Snapchat_Hours", etc.) are not statistically significant, as they are all equal to 1. This indicates that there isn't enough evidence to suggest that any of these variables have a noteworthy impact on mood productivity.
+
+
+2) Residual Analysis
+
+```{r}
+residuals <- residuals(logistic_reg, type = "response")
+```
+
+```{r}
+plot(logistic_reg)
+```
+
+
+3) Predicted
+
+```{r}
+predicted.data <- data.frame(probability.of.mood=logistic_reg$fitted.values,mood=social_media_reg$Mood_Productivity)
+predicted.data <- predicted.data[order(predicted.data$probability.of.mood, decreasing=FALSE),]
+predicted.data$rank <- 1:nrow(predicted.data)
+
+predicted.data
+ggplot(data=predicted.data, aes(x=rank, y=probability.of.mood)) +
+geom_point(aes(color=mood), alpha=1, shape=4, stroke=2) +
+xlab("Index") +
+ylab("Predicted probability of Mood")
+```
+
+The dataframe provides probabilities for moods being labeled as either "Yes" or "No". Analysis of the table suggests that most observations lean towards being classified as "Yes". However, this plot emphasizes the model's performance, revealing that it performs inadequately.
+
+4) Accuracy
+
+```{r}
+# From Caret
+data <- predict(logistic_reg,newdata=social_media_reg,type="response" )
+data
+```
+
+
+Every value within the pdata object indicates the forecasted likelihood of the mood being categorized as "Yes" for the corresponding observation in your dataset.
+```{r}
+dataF <- as.factor(ifelse(test=as.numeric(data>0.5) == 0, yes="Not Productive", no="Productive"))
+
+```
+
+The model shows perfect accuracy, indicating potential overfitting due to the small dataset size. Imbalanced data, with mostly "Yes" labels for mood productivity, highlights bias issues. Thus, accurately assessing mood productivity solely from social media usage remains challenging.
+

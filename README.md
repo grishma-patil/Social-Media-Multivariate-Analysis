@@ -24,6 +24,7 @@
 * Can we find a relationship between social media usage and morning tiredness?<br>
 * Can we predict tiredness upon waking using social media usage patterns?<br>
 <br>
+
 **Methods Used**
 * Correlation Matrix to explore relationships between variables<br>
 * PCA (Principal Component Analysis): Tested for dimensionality reduction, but not ideal (variance < 70%)<br>
@@ -35,11 +36,13 @@
 * Clustering: Used to group sleep patterns<br>
 * Logistic Regression: Used to predict tiredness levels<br>
 <br>
+
 **Results**
 * Logistic regression performed well in classifying tiredness, with 71% accuracy.<br>
 * ROC curve showed reliable performance.<br>
 * Insights suggest social media patterns can predict sleep-related tiredness in students.<br>
 <br>
+
 **Conclusion**
 Social media usage—especially platform-specific habits—can be used as a predictor of morning tiredness. The logistic regression model was most effective in identifying students at risk for sleep issues based on app usage.<br>
 <br>
@@ -51,6 +54,7 @@ Social media usage—especially platform-specific habits—can be used as a pred
 * scikit-learn<br>
 * FactorAnalyzer<br>
 <br>
+
 **Future Work**
 * Expand dataset for more generalizable results<br>
 * Include variables like screen time after 10 PM or caffeine consumption<br>

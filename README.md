@@ -5,7 +5,8 @@
 * Columns: 12<br>
 * Data Points: Self-reported usage of social media platforms and sleep-related indicators<br>
 <br>
-**Data Dictionary**<br>
+
+**Data Dictionary**
 * Dataset ID	- Unique identifier for each student<br>
 * Instagram Usage	- Time spent on Instagram<br>
 * LinkedIn Usage - 	Time spent on LinkedIn<br>
